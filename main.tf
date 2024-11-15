@@ -1,7 +1,4 @@
-# we create a VPC, a public subnet (for API Gateway and NAT Gateway), 
-# and private subnets (for Lambda functions and secure data handling).
-
-# create infrastructure for VPC, VPC endpoints, and security groups to DynamoDB Ledger
+# Create infrastructure for VPC, subnets, and security groups to DynamoDB Ledger
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
@@ -16,6 +13,25 @@ module "vpc" {
 
   tags = {
     Name = "${var.vpc_name}"
+  }
+}
+
+# Create Elastic IP for NAT Gateway
+resource "aws_eip" "nat_eip" {
+  vpc = true
+
+  tags = {
+    Name = "${var.vpc_name}-nat-eip"
+  }
+}
+
+# Create NAT Gateway and associate the EIP
+resource "aws_nat_gateway" "nat_gateway" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = module.vpc.public_subnets[0]  # Use your specific public subnet ID here
+
+  tags = {
+    Name = "${var.vpc_name}-nat-gateway"
   }
 }
 
@@ -58,8 +74,6 @@ resource "aws_security_group" "public_sg" {
 }
 
 # Security Group for Private Resources (e.g., Lambda)
-# Security group for Lambda function (ensuring access to DynamoDB endpoint)
-
 resource "aws_security_group" "private_sg" {
   vpc_id = module.vpc.vpc_id
   name   = "${var.vpc_name}-private-sg"
@@ -76,3 +90,49 @@ resource "aws_security_group" "private_sg" {
   }
 }
 
+# Create Route Tables for Public and Private Subnets
+resource "aws_route_table" "public_route_table" {
+  vpc_id = module.vpc.vpc_id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = module.vpc.internet_gateway_id
+  }
+
+  tags = {
+    Name = "${var.vpc_name}-public-route-table"
+  }
+}
+
+resource "aws_route_table" "private_route_table" {
+  vpc_id = module.vpc.vpc_id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat_gateway.id
+  }
+
+  tags = {
+    Name = "${var.vpc_name}-private-route-table"
+  }
+}
+
+# Associate Route Tables with Subnets
+resource "aws_route_table_association" "public_association" {
+  subnet_id      = module.vpc.public_subnets[0]
+  route_table_id = aws_route_table.public_route_table.id
+}
+
+resource "aws_route_table_association" "private_association" {
+  subnet_id      = module.vpc.private_subnets[0]
+  route_table_id = aws_route_table.private_route_table.id
+}
+
+# Create Internet Gateway
+resource "aws_internet_gateway" "internet_gateway" {
+  vpc_id = module.vpc.vpc_id
+
+  tags = {
+    Name = "${var.vpc_name}-internet-gateway"
+  }
+}
