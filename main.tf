@@ -16,9 +16,9 @@ module "vpc" {
   }
 }
 
-# Create Elastic IP for NAT Gateway
+# Create Elastic IP for NAT Gateway (Updated for `domain` instead of `vpc`)
 resource "aws_eip" "nat_eip" {
-  vpc = true
+  domain = "vpc"  # Updated argument
 
   tags = {
     Name = "${var.vpc_name}-nat-eip"
@@ -96,7 +96,7 @@ resource "aws_route_table" "public_route_table" {
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = module.vpc.internet_gateway_id
+    gateway_id = module.vpc.default_internet_gateway_id  # Corrected reference to default internet gateway
   }
 
   tags = {
@@ -108,7 +108,7 @@ resource "aws_route_table" "private_route_table" {
   vpc_id = module.vpc.vpc_id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.nat_gateway.id
   }
 
@@ -128,7 +128,7 @@ resource "aws_route_table_association" "private_association" {
   route_table_id = aws_route_table.private_route_table.id
 }
 
-# Create Internet Gateway
+# Create Internet Gateway (Corrected as per module outputs)
 resource "aws_internet_gateway" "internet_gateway" {
   vpc_id = module.vpc.vpc_id
 
