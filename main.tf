@@ -3,14 +3,14 @@
 # create infrastructure for VPC, VPC endpoints, and security groups to DynamoDB Ledger
 
 module "vpc" {
-  source              = "terraform-aws-modules/vpc/aws"
-  name                = var.vpc_name
-  cidr                = var.cidr
-  azs                 = var.azs
-  private_subnets     = var.pvt_subnets
-  public_subnets      = var.pub_subnets
-  enable_nat_gateway  = true
-  single_nat_gateway  = true
+  source             = "terraform-aws-modules/vpc/aws"
+  name               = var.vpc_name
+  cidr               = var.cidr
+  azs                = var.azs
+  private_subnets    = var.pvt_subnets
+  public_subnets     = var.pub_subnets
+  enable_nat_gateway = true
+  single_nat_gateway = true
 
   # General tags for the VPC and associated resources
   tags = {
@@ -54,7 +54,7 @@ resource "aws_vpc_endpoint" "dynamodb_endpoint" {
   service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
   vpc_endpoint_type = "Gateway"
   # Attach endpoint to private subnets
-  route_table_ids   = module.vpc.private_route_table_ids
+  route_table_ids = module.vpc.private_route_table_ids
   tags = {
     Name = "${var.vpc_name}-dynamodb-endpoint"
   }
