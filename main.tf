@@ -2,6 +2,7 @@
 # and private subnets (for Lambda functions and secure data handling).
 # create infrastructure for VPC, VPC endpoints, and security groups to DynamoDB Ledger
 
+# VPC Module
 module "vpc" {
   source             = "terraform-aws-modules/vpc/aws"
   name               = var.vpc_name
@@ -12,55 +13,108 @@ module "vpc" {
   enable_nat_gateway = true
   single_nat_gateway = true
 
-  # General tags for the VPC and associated resources
+  # Tags for VPC and associated resources
   tags = {
     Name = "${var.vpc_name}"
   }
 
-  # Public Subnet Tags (Ensuring uniqueness based on AZ)
   public_subnet_tags = {
     Name = "${var.vpc_name}-pub-subnet"
   }
 
-  # Private Subnet Tags (Ensuring uniqueness based on AZ)
   private_subnet_tags = {
     Name = "${var.vpc_name}-pvt-subnet"
   }
 
-  # Public Route Table Tags
   public_route_table_tags = {
     Name = "${var.vpc_name}-pub-route-table"
   }
 
-  # Private Route Table Tags
   private_route_table_tags = {
     Name = "${var.vpc_name}-pvt-route-table"
   }
 
-  # NAT Gateway Tags
   nat_gateway_tags = {
     Name = "${var.vpc_name}-nat-gateway"
   }
 
-  # Internet Gateway Tags
   igw_tags = {
     Name = "${var.vpc_name}-igw"
   }
 }
 
-# Create DynamoDB VPC Endpoint with naming
+# DynamoDB VPC Endpoint
 resource "aws_vpc_endpoint" "dynamodb_endpoint" {
   vpc_id            = module.vpc.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
   vpc_endpoint_type = "Gateway"
-  # Attach endpoint to private subnets
-  route_table_ids = module.vpc.private_route_table_ids
+  route_table_ids   = module.vpc.private_route_table_ids
   tags = {
     Name = "${var.vpc_name}-dynamodb-endpoint"
   }
 }
 
-# Security Group for Public Resources (e.g., API Gateway) with naming
+# Secrets Manager VPC Endpoint
+resource "aws_vpc_endpoint" "secrets_manager_endpoint" {
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.private_sg.id]
+  tags = {
+    Name = "${var.vpc_name}-secrets-manager-endpoint"
+  }
+}
+
+# KMS VPC Endpoint
+resource "aws_vpc_endpoint" "kms_endpoint" {
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.kms"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.private_sg.id]
+  tags = {
+    Name = "${var.vpc_name}-kms-endpoint"
+  }
+}
+
+# CloudWatch VPC Endpoint
+resource "aws_vpc_endpoint" "cloudwatch_endpoint" {
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.monitoring"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.private_sg.id]
+  tags = {
+    Name = "${var.vpc_name}-cloudwatch-endpoint"
+  }
+}
+
+# STS VPC Endpoint
+resource "aws_vpc_endpoint" "sts_endpoint" {
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.sts"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.private_sg.id]
+  tags = {
+    Name = "${var.vpc_name}-sts-endpoint"
+  }
+}
+
+# # SQS VPC Endpoint (Optional)
+# resource "aws_vpc_endpoint" "sqs_endpoint" {
+#   vpc_id            = module.vpc.vpc_id
+#   service_name      = "com.amazonaws.${var.aws_region}.sqs"
+#   vpc_endpoint_type = "Interface"
+#   subnet_ids        = module.vpc.private_subnet_ids
+#   security_group_ids = [aws_security_group.private_sg.id]
+#   tags = {
+#     Name = "${var.vpc_name}-sqs-endpoint"
+#   }
+# }
+
+# Security Group for Public Resources
 resource "aws_security_group" "public_sg" {
   vpc_id = module.vpc.vpc_id
   name   = "${var.vpc_name}-pub-sg"
@@ -81,7 +135,7 @@ resource "aws_security_group" "public_sg" {
   }
 }
 
-# Security Group for Private Resources (e.g., Lambda) with naming
+# Security Group for Private Resources
 resource "aws_security_group" "private_sg" {
   vpc_id = module.vpc.vpc_id
   name   = "${var.vpc_name}-pvt-sg"
